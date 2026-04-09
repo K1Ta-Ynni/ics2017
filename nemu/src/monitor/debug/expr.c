@@ -8,7 +8,7 @@
 #include <stdlib.h>
 
 enum {
-  TK_NOTYPE = 256, TK_EQ, TK_NEQ, TK_NUM, TK_HEX
+  TK_NOTYPE = 256, TK_EQ, TK_NEQ, TK_NUM, TK_HEX, TK_REG, TK_NEG, TK_DEREF
 
   /* TODO: Add more token types */
 
@@ -26,6 +26,7 @@ static struct rule {
   {" +", TK_NOTYPE},    // spaces
   {"0[xX][0-9a-fA-F]+", TK_HEX}, // hexadecimal number
   {"[0-9]+", TK_NUM},   // decimal number
+  {"\\$[a-zA-Z][a-zA-Z0-9]*", TK_REG}, // register
   {"!=", TK_NEQ},       // not equal
   {"\\+", '+'},         // plus
   {"==", TK_EQ},        // equal
@@ -64,6 +65,43 @@ typedef struct token {
 
 Token tokens[64];
 int nr_token;
+
+static bool is_operand(int type) {
+  return type == TK_NUM || type == TK_HEX || type == TK_REG || type == ')';
+}
+
+static bool reg_str2val(const char *s, uint32_t *val) {
+  int i;
+  const char *reg = s + 1;
+
+  for (i = 0; i < 8; i ++) {
+    if (strcmp(reg, regsl[i]) == 0) {
+      *val = reg_l(i);
+      return true;
+    }
+  }
+
+  for (i = 0; i < 8; i ++) {
+    if (strcmp(reg, regsw[i]) == 0) {
+      *val = reg_w(i);
+      return true;
+    }
+  }
+
+  for (i = 0; i < 8; i ++) {
+    if (strcmp(reg, regsb[i]) == 0) {
+      *val = reg_b(i);
+      return true;
+    }
+  }
+
+  if (strcmp(reg, "eip") == 0) {
+    *val = cpu.eip;
+    return true;
+  }
+
+  return false;
+}
 
 static bool check_parentheses(int p, int q) {
   int i;
@@ -143,11 +181,16 @@ static uint32_t eval(int p, int q, bool *success) {
   }
 
   if (p == q) {
+    uint32_t reg_val;
+
     if (tokens[p].type == TK_NUM) {
       return strtoul(tokens[p].str, NULL, 10);
     }
     if (tokens[p].type == TK_HEX) {
       return strtoul(tokens[p].str, NULL, 16);
+    }
+    if (tokens[p].type == TK_REG && reg_str2val(tokens[p].str, &reg_val)) {
+      return reg_val;
     }
 
     *success = false;
@@ -159,33 +202,48 @@ static uint32_t eval(int p, int q, bool *success) {
   }
 
   op = find_main_operator(p, q);
-  if (op == -1) {
-    *success = false;
-    return 0;
-  }
+  if (op != -1) {
+    val1 = eval(p, op - 1, success);
+    if (!*success) {
+      return 0;
+    }
 
-  val1 = eval(p, op - 1, success);
-  if (!*success) {
-    return 0;
-  }
+    val2 = eval(op + 1, q, success);
+    if (!*success) {
+      return 0;
+    }
 
-  val2 = eval(op + 1, q, success);
-  if (!*success) {
-    return 0;
-  }
-
-  switch (tokens[op].type) {
-    case '+': return val1 + val2;
-    case '-': return val1 - val2;
-    case '*': return val1 * val2;
-    case '/':
-      if (val2 == 0) {
+    switch (tokens[op].type) {
+      case '+': return val1 + val2;
+      case '-': return val1 - val2;
+      case '*': return val1 * val2;
+      case '/':
+        if (val2 == 0) {
+          *success = false;
+          return 0;
+        }
+        return val1 / val2;
+      case TK_EQ: return val1 == val2;
+      case TK_NEQ: return val1 != val2;
+      default:
         *success = false;
         return 0;
+    }
+  }
+
+  switch (tokens[p].type) {
+    case TK_NEG:
+      val1 = eval(p + 1, q, success);
+      if (!*success) {
+        return 0;
       }
-      return val1 / val2;
-    case TK_EQ: return val1 == val2;
-    case TK_NEQ: return val1 != val2;
+      return -val1;
+    case TK_DEREF:
+      val1 = eval(p + 1, q, success);
+      if (!*success) {
+        return 0;
+      }
+      return vaddr_read(val1, 4);
     default:
       *success = false;
       return 0;
@@ -220,6 +278,7 @@ static bool make_token(char *e) {
             break;
           case TK_NUM:
           case TK_HEX:
+          case TK_REG:
           case TK_EQ:
           case TK_NEQ:
           case '+':
@@ -249,6 +308,15 @@ static bool make_token(char *e) {
     if (i == NR_REGEX) {
       printf("no match at position %d\n%s\n%*.s^\n", position, e, position, "");
       return false;
+    }
+  }
+
+  for (i = 0; i < nr_token; i ++) {
+    if (tokens[i].type == '-' && (i == 0 || !is_operand(tokens[i - 1].type))) {
+      tokens[i].type = TK_NEG;
+    }
+    else if (tokens[i].type == '*' && (i == 0 || !is_operand(tokens[i - 1].type))) {
+      tokens[i].type = TK_DEREF;
     }
   }
 

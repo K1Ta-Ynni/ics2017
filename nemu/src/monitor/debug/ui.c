@@ -95,6 +95,45 @@ static int cmd_p(char *args) {
   return 0;
 }
 
+static int cmd_x(char *args) {
+  bool success = false;
+  uint32_t addr;
+  long n;
+  char *endptr;
+  int i;
+
+  if (args == NULL) {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
+
+  n = strtol(args, &endptr, 10);
+  if (endptr == args || n <= 0) {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
+
+  while (*endptr == ' ') {
+    endptr ++;
+  }
+  if (*endptr == '\0') {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
+
+  addr = expr(endptr, &success);
+  if (!success) {
+    printf("Bad expression: %s\n", endptr);
+    return 0;
+  }
+
+  for (i = 0; i < n; i ++) {
+    vaddr_t cur = addr + i * 4;
+    printf("0x%08x: 0x%08x\n", cur, vaddr_read(cur, 4));
+  }
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -107,6 +146,7 @@ static struct {
   { "si", "Execute N instructions, default 1", cmd_si },
   { "info", "Print program status, currently supports 'info r'", cmd_info },
   { "p", "Evaluate expression EXPR", cmd_p },
+  { "x", "Examine memory: x N EXPR", cmd_x },
   { "q", "Exit NEMU", cmd_q },
 
   /* TODO: Add more commands */
