@@ -71,6 +71,10 @@ static int cmd_info(char *args) {
     printf("eip\t0x%08x\n", cpu.eip);
     return 0;
   }
+  if (strcmp(arg, "w") == 0) {
+    list_watchpoints();
+    return 0;
+  }
 
   printf("Unknown info subcommand '%s'\n", arg);
   return 0;
@@ -134,6 +138,38 @@ static int cmd_x(char *args) {
   return 0;
 }
 
+static int cmd_w(char *args) {
+  new_wp(args);
+  return 0;
+}
+
+static int cmd_d(char *args) {
+  long no;
+  char *endptr;
+
+  if (args == NULL) {
+    printf("Usage: d N\n");
+    return 0;
+  }
+
+  no = strtol(args, &endptr, 10);
+  while (endptr != NULL && *endptr == ' ') {
+    endptr ++;
+  }
+  if (endptr == args || (endptr != NULL && *endptr != '\0')) {
+    printf("Usage: d N\n");
+    return 0;
+  }
+
+  if (free_wp(no)) {
+    printf("Watchpoint %ld deleted.\n", no);
+  }
+  else {
+    printf("No watchpoint number %ld.\n", no);
+  }
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -144,9 +180,11 @@ static struct {
   { "help", "Display informations about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "si", "Execute N instructions, default 1", cmd_si },
-  { "info", "Print program status, currently supports 'info r'", cmd_info },
+  { "info", "Print program status, currently supports 'info r' and 'info w'", cmd_info },
   { "p", "Evaluate expression EXPR", cmd_p },
   { "x", "Examine memory: x N EXPR", cmd_x },
+  { "w", "Set a watchpoint for expression EXPR", cmd_w },
+  { "d", "Delete watchpoint N", cmd_d },
   { "q", "Exit NEMU", cmd_q },
 
   /* TODO: Add more commands */
