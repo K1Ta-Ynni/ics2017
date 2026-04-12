@@ -21,8 +21,11 @@ void init_wp_pool() {
 WP* new_wp(char *expr_str) {
   WP *wp;
   bool success = false;
+  while (expr_str != NULL && *expr_str == ' ') {
+    expr_str ++;
+  }
 
-  if (expr_str == NULL) {
+  if (expr_str == NULL || *expr_str == '\0') {
     printf("Usage: w EXPR\n");
     return NULL;
   }
@@ -120,4 +123,3 @@ bool check_watchpoints() {
 
   return triggered;
 }
-

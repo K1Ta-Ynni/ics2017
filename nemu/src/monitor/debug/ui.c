@@ -9,6 +9,13 @@
 
 void cpu_exec(uint64_t);
 
+static char *skip_spaces(char *s) {
+  while (s != NULL && *s == ' ') {
+    s ++;
+  }
+  return s;
+}
+
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 char* rl_gets() {
   static char *line_read = NULL;
@@ -60,7 +67,7 @@ static int cmd_info(char *args) {
   int i;
 
   if (arg == NULL) {
-    printf("Usage: info r\n");
+    printf("Usage: info r|w\n");
     return 0;
   }
 
@@ -84,7 +91,8 @@ static int cmd_p(char *args) {
   bool success = false;
   uint32_t result;
 
-  if (args == NULL) {
+  args = skip_spaces(args);
+  if (args == NULL || *args == '\0') {
     printf("Usage: p EXPR\n");
     return 0;
   }
@@ -106,7 +114,8 @@ static int cmd_x(char *args) {
   char *endptr;
   int i;
 
-  if (args == NULL) {
+  args = skip_spaces(args);
+  if (args == NULL || *args == '\0') {
     printf("Usage: x N EXPR\n");
     return 0;
   }
@@ -147,7 +156,8 @@ static int cmd_d(char *args) {
   long no;
   char *endptr;
 
-  if (args == NULL) {
+  args = skip_spaces(args);
+  if (args == NULL || *args == '\0') {
     printf("Usage: d N\n");
     return 0;
   }
@@ -195,7 +205,7 @@ static struct {
 
 static int cmd_help(char *args) {
   /* extract the first argument */
-  char *arg = strtok(NULL, " ");
+  char *arg = args == NULL ? NULL : strtok(args, " ");
   int i;
 
   if (arg == NULL) {
