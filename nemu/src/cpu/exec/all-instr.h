@@ -6,7 +6,11 @@ make_EHelper(movsx);
 make_EHelper(movzx);
 make_EHelper(push);
 make_EHelper(pop);
+make_EHelper(pusha);
+make_EHelper(popa);
 make_EHelper(leave);
+make_EHelper(cltd);
+make_EHelper(cwtl);
 
 make_EHelper(add);
 make_EHelper(sub);
