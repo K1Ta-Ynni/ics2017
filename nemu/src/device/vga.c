@@ -30,7 +30,7 @@ void init_vga() {
   SDL_Init(SDL_INIT_VIDEO);
   SDL_CreateWindowAndRenderer(SCREEN_W * 2, SCREEN_H * 2, 0, &window, &renderer);
   SDL_SetWindowTitle(window, "NEMU");
-  texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+  texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888,
       SDL_TEXTUREACCESS_STATIC, SCREEN_W, SCREEN_H);
 
   vmem = add_mmio_map(VMEM, 0x80000, vga_vmem_io_handler);
